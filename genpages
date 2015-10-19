@@ -1,0 +1,963 @@
+#!/bin/bash
+# genpages
+
+#dIFS=$IFS
+#IFS=$'\n'  # so that the following for loop splits input just on newlines rather than all whitespace
+
+ODIR="html/";
+ABDIR="abstracts/processed/";
+LBABDIR="late-breaking-abstracts/processed/";
+
+OVERVIEWLNK="schedule-overview.html";
+OVERVIEWDOC=$ODIR$OVERVIEWLNK;
+OVERVIEWTXT="Schedule Overview";
+OVERVIEWSTXT="Overview";
+
+PAPERIDXLNK="paper-index.html";
+PAPERIDXDOC=$ODIR$PAPERIDXLNK;
+PAPERIDXTXT="Paper Index";
+PAPERIDXSTXT="Papers";
+
+AUTHORIDXLNK="author-index.html";
+AUTHORIDXDOC=$ODIR$AUTHORIDXLNK;
+AUTHORIDXTXT="Author Index";
+AUTHORIDXSTXT="Authors";
+
+AUTHORLNKPFX="author-";
+AUTHORDOCPFX=$ODIR$AUTHORLNKPFX;
+
+PAPERLNKPFX="paper-";
+PAPERDOCPFX=$ODIR$PAPERLNKPFX;
+
+ROOMINFOLNK="room-info.html";
+ROOMINFODOC=$ODIR$ROOMINFOLNK;
+ROOMINFOTXT="Room Information";
+ROOMINFOSTXT="Room Info";
+
+DLNK[20]="schedule-monday.html";
+DDOC[20]=$ODIR${DLNK[20]};
+DTXT[20]="Monday 20 July";
+DSTXT[20]="Monday";
+
+DLNK[21]="schedule-tuesday.html";
+DDOC[21]=$ODIR${DLNK[21]};
+DTXT[21]="Tuesday 21 July";
+DSTXT[21]="Tuesday";
+
+DLNK[22]="schedule-wednesday.html";
+DDOC[22]=$ODIR${DLNK[22]};
+DTXT[22]="Wednesday 22 July";
+DSTXT[22]="Wednesday";
+
+DLNK[23]="schedule-thursday.html";
+DDOC[23]=$ODIR${DLNK[23]};
+DTXT[23]="Thursday 23 July";
+DSTXT[23]="Thursday";
+
+DLNK[24]="schedule-friday.html";
+DDOC[24]=$ODIR${DLNK[24]};
+DTXT[24]="Friday 24 July";
+DSTXT[24]="Friday";
+
+#########################################################################
+# Function Definitions
+
+function write_nav {
+  cat << EOF
+<nav>
+<a href="$OVERVIEWLNK">$OVERVIEWSTXT</a> |
+EOF
+  for D in `seq 20 24`; do
+    echo '<a href="'${DLNK[D]}'">'${DSTXT[D]}'</a> |'
+  done  
+  cat << EOF
+<a href="$PAPERIDXLNK">$PAPERIDXSTXT</a> |
+<a href="$AUTHORIDXLNK">$AUTHORIDXSTXT</a> |
+<a href="$ROOMINFOLNK">$ROOMINFOSTXT</a>
+</nav>
+EOF
+}
+
+function write_header {
+  cat header.html
+  echo "<header>"
+  write_nav
+  echo "<h2>"
+  echo "$1"
+  echo "</h2>"
+  echo "</header>"
+}
+
+function write_footer {
+  cat footer.html
+  echo -n ""
+}
+
+#########################################################################
+
+# Check whether files exist, and if so, should they be overwritten
+# for now, do the following ... dangerous!!
+rm -f html/*
+cp html.full/css/ecal2015-v2.css html/
+cp rch*.png html/
+
+
+#########################################################################
+
+
+
+
+#########################################################################
+# Schedule Overview page
+
+# Write header HTML
+write_header "$OVERVIEWTXT" >> $OVERVIEWDOC
+
+###########
+
+{
+  echo "<article id='overview-days' class='schedule-overview'>"
+  echo "<h3>Schedules by day</h3>"
+  echo "<ul>"
+  for D in `seq 20 24`; do
+    echo '<li><a href="'${DLNK[D]}'">'${DTXT[D]}'</a></li>'
+  done
+  echo "</ul>"
+  echo "</article>"
+} >> $OVERVIEWDOC
+ 
+###########
+
+{
+  echo "<article class='schedule-overview'>"
+  echo "<h3>Schedules by session</h3>"
+  echo "<ul>"
+} >> $OVERVIEWDOC
+
+for SID in `sqlite3 ecalprog.db "SELECT id FROM sessions ORDER BY title"`; do
+
+  # grab data associated with this session
+  STITLE=`sqlite3 ecalprog.db "SELECT title FROM sessions WHERE id="$SID`;
+  SDATE=`sqlite3 ecalprog.db "SELECT date FROM sessions WHERE id="$SID`;
+  STIME=`sqlite3 ecalprog.db "SELECT time FROM sessions WHERE id="$SID`;
+  RID=`sqlite3 ecalprog.db "SELECT roomid FROM sessions WHERE id="$SID`;
+  ROOMNO=`sqlite3 ecalprog.db "SELECT number FROM rooms WHERE id="$RID`;
+
+  DNUM=0
+  REGEX=".*([[:digit:]]{2}).*"
+  if [[ $SDATE =~ $REGEX ]]; then DNUM=${BASH_REMATCH[1]}; fi
+  
+  {
+    echo "<li>" 
+    echo "<span class='session-name-idx'><a href=\"${DLNK[DNUM]}#$SID\">$STITLE</a></span>"
+    echo "<span class='date'><a href=\"${DLNK[DNUM]}\">$SDATE</a></span>"
+    echo "<span class='time'>$STIME</span>"
+    echo "<span class='room'><a href=\"$ROOMINFOLNK#$RID\">$ROOMNO</a></span>"
+    echo "</li>"
+  } >> $OVERVIEWDOC
+
+done
+
+{
+  echo "</ul>"
+  echo "</article>"
+} >> $OVERVIEWDOC
+
+###########
+
+{
+  echo "<article class='schedule-overview'>"
+  echo "<h3>Other ways to browse the schedule</h3>"
+  echo "<ul>"
+  echo "<li><a href='"$PAPERIDXLNK"'>"$PAPERIDXTXT"</a></li>"
+  echo "<li><a href='"$AUTHORIDXLNK"'>"$AUTHORIDXTXT"</a></li>"
+  echo "<li>Papers for which video abstracts were submitted are indicated with a <span class='has-video'>video&nbsp;abstract</span> tag in these programme pages. In addition to accessing the videos by clicking on these tags, a <a href='https://www.youtube.com/playlist?list=PLPW1sBn63ZazNnCOnwl1tHHZFKKXHICCe'>YouTube playlist of all submitted video abstracts</a> is also available.</li>"
+  echo "</ul>"
+  echo "</article>"
+} >> $OVERVIEWDOC
+
+###########
+
+# Write footer HTML for schedule overview page
+write_footer >> $OVERVIEWDOC
+
+
+#########################################################################
+# Paper Index page
+
+# Write header HTML
+write_header "$PAPERIDXTXT" >> $PAPERIDXDOC
+
+###########
+
+{
+  echo "<article>"
+  echo "<ul>"
+} >> $PAPERIDXDOC
+
+for TID in `sqlite3 ecalprog.db "SELECT id FROM talks ORDER BY title"`; do
+  # grab data associated with this talk
+  PTITLE=`sqlite3 ecalprog.db "SELECT title FROM talks WHERE id="$TID`;
+  {
+    echo "<li class='paper-title-idx'>" 
+    echo "<a href=\"$PAPERLNKPFX$TID.html\">$PTITLE</a>"
+  } >> $PAPERIDXDOC
+  
+  VURL=`sqlite3 ecalprog.db "SELECT videourl FROM talks WHERE id="$TID`
+  if [ -n "$VURL" ]; then
+    echo "<span class='has-video'><a href='$PAPERLNKPFX$TID.html#video'>video&nbsp;abstract</a></span>" >> $PAPERIDXDOC
+  fi
+  
+  echo "<ul class="author-list-paper-idx"><li>" >> $PAPERIDXDOC
+  for AID in `sqlite3 ecalprog.db "SELECT authorid FROM talkauthors WHERE talkid="$TID" ORDER BY authorpos"`; do
+    ANAME=`sqlite3 ecalprog.db "SELECT name FROM authors WHERE id="$AID`;
+    echo "<span class='author-name'><a href=\"$AUTHORLNKPFX$AID.html\">$ANAME</a></span>" >> $PAPERIDXDOC
+  done
+  echo "</ul></li>" >> $PAPERIDXDOC  
+  
+  echo "</li>" >> $PAPERIDXDOC
+
+done
+
+{
+  echo "</ul>"
+  echo "</article>"
+} >> $PAPERIDXDOC
+
+###########
+
+# Write footer HTML for paper index page
+write_footer >> $PAPERIDXDOC
+
+
+#########################################################################
+# Author Index page
+
+# Write header HTML
+write_header "$AUTHORIDXTXT" >> $AUTHORIDXDOC
+
+###########
+
+{
+  echo "<article>"
+  echo "<ul>"
+} >> $AUTHORIDXDOC
+
+for AID in `sqlite3 ecalprog.db "SELECT id FROM authors ORDER BY name"`; do
+  # grab data associated with this talk
+  ANAME=`sqlite3 ecalprog.db "SELECT name FROM authors WHERE id="$AID`;
+  {
+    echo "<li>" 
+    echo "<span class='author-name-idx'><a href=\"$AUTHORLNKPFX$AID.html\">$ANAME</a></span>"
+    echo "<ul class=\"author-papers-idx\">"
+  } >> $AUTHORIDXDOC
+  
+  for TID in `sqlite3 ecalprog.db "SELECT talkid FROM talkauthors WHERE authorid="$AID" ORDER BY talkid"`; do
+  
+    PTITLE=`sqlite3 ecalprog.db "SELECT title FROM talks WHERE id="$TID`;
+    {
+      echo "<li>" 
+      echo "<span class='paper-title'><a href=\"$PAPERLNKPFX$TID.html\">$PTITLE</a></span>"
+    } >> $AUTHORIDXDOC
+    
+#     for AAID in `sqlite3 ecalprog.db "SELECT authorid FROM talkauthors WHERE talkid="$TID" ORDER BY authorpos"`; do
+#       AANAME=`sqlite3 ecalprog.db "SELECT name FROM authors WHERE id="$AAID`;
+#       echo "<span class='author-name'><a href=\"$AUTHORLNKPFX$AAID.html\">$AANAME</a></span>" >> $AUTHORIDXDOC
+#     done
+    
+    echo "</li>" >> $AUTHORIDXDOC
+
+  done
+  
+  {
+    echo "</ul>"
+    echo "</li>"
+  } >> $AUTHORIDXDOC
+
+done
+
+{
+  echo "</ul>"
+  echo "</article>"
+} >> $AUTHORIDXDOC
+
+###########
+
+# Write footer HTML for author index page
+write_footer >> $AUTHORIDXDOC
+
+
+#########################################################################
+# Schedules for each day
+
+# loop through each day of the conference
+for DAY in `seq 20 24`; do
+
+  DLNK=${DLNK[DAY]}
+  DDOC=${DDOC[DAY]}
+  DTXT=${DTXT[DAY]}
+
+  # Write header HTML
+  write_header "Schedule: $DTXT" >> $DDOC
+  
+
+###########
+  # write the day's overview table
+
+  {
+    echo "<article id='day-schedule-table'>"
+    echo "<h3>Day summary</h3>"
+    echo "<table id='summary'>"
+  } >> $DDOC
+  
+  case $DAY in 
+  20)
+    cat << EOF >> $DDOC
+<tr>
+  <th class="time"></th>
+  <th class="activitycol6 room"><a href="room-info.html#1">RCH/037<br>Lecture theatre</a></th>
+  <th class="activitycol6 room"><a href="room-info.html#2">RCH/248<br>Lakehouse 1</a></th>
+  <th class="activitycol6 room"><a href="room-info.html#3">RCH/250<br>Lakehouse 2</a></th>
+  <th class="activitycol6 room"><a href="room-info.html#4">RCH/017<br>Teaching room</a></th>
+  <th class="activitycol6 room"><a href="room-info.html#5">RCH/204<br>Seminar room</a></th>
+  <th class="activitycol6 room"><a href="room-info.html#6">RCH/103<br>Teaching room</a></th>
+</tr>
+<tr>
+  <td class="time">09:00</td>
+  <td colspan="6" class="general">registration</td>
+</tr>
+<tr>
+  <td class="time">10:00</td>
+  <td class="summerschool"><a href="summerschool.html">ISAL summer school (start 09:30)</a></td>
+  <td class="workshop1"><a href="http://www.mis.mpg.de/ay/index.html?c=workshops/ecal15ws.html">workshop: ITiALife</a></td>
+  <td class="workshop3"><a href="https://steeringcomplexsystems.wordpress.com/">workshop: SteerComplex and FoCAS</a></td>
+  <td class="workshop5"><a href="http://programmable-biology.ico2s.org/">workshop: ToProB</a></td>
+  <td class="workshop6"><a href="http://alife.org/ws/oee1/">workshop: OEE #1</a></td>
+  <td></td>
+</tr>
+<tr>
+  <td class="time">10:50</td>
+  <td colspan="6" class="general">coffee break</td>
+</tr>
+<tr>
+  <td class="time">11:20</td>
+  <td class="summerschool"><a href="summerschool.html">ISAL summer school (ctd)</a></td>
+  <td class="workshop1"><a href="http://www.mis.mpg.de/ay/index.html?c=workshops/ecal15ws.html">workshop: ITiALife (ctd)</a></td>
+  <td class="workshop3"><a href="https://steeringcomplexsystems.wordpress.com/">workshop: SteerComplex and FoCAS</a></td>
+  <td class="workshop5"><a href="http://programmable-biology.ico2s.org/">workshop: ToProB (ctd)</a></td>
+  <td class="workshop6"><a href="http://alife.org/ws/oee1/">workshop: OEE #1 (ctd)</a></td>
+  <td></td>
+</tr>
+<tr>
+  <td class="time">13:00</td>
+  <td colspan="6" class="general">lunch break</td>
+</tr>
+<tr>
+  <td class="time">14:00</td>
+  <td class="summerschool"><a href="summerschool.html">ISAL summer school (ctd)</a></td>
+  <td class="workshop2"><a href="http://www.phychip.eu/physarumyork/">workshop: PhyChip</a></td>
+  <td class="workshop4"><a href="http://www.cosmos-research.org/cosmos2015.html">workshop: CoSMoS</a></td>
+  <td class="workshop5"><a href="http://programmable-biology.ico2s.org/">workshop: ToProB (ctd)</a></td>
+  <td class="workshop7"><a href="http://muse.union.edu/eps-workshop/">workshop: EvoPhysSys</a></td>
+  <td class="tutorial1"><a href="https://code.google.com/p/information-dynamics-toolkit/wiki/Tutorial_ECAL2015">tutorial: JIDT (start 13:30)</a></td>
+</tr>
+<tr>
+  <td class="time">15:30</td>
+  <td colspan="6" class="general">tea break</td>
+</tr>
+<tr>
+  <td class="time">16:00</td>
+  <td class="summerschool"><a href="summerschool.html">ISAL summer school (ctd) (until 18:30)</a></td>
+  <td class="workshop2"><a href="http://www.phychip.eu/physarumyork/">workshop: PhyChip (ctd)</a></td>
+  <td class="workshop4"><a href="http://www.cosmos-research.org/cosmos2015.html">workshop: CoSMoS (ctd)</a></td>
+  <td class="workshop5"><a href="http://programmable-biology.ico2s.org/">workshop: ToProB (ctd)</a></td>
+  <td class="workshop7"><a href="http://muse.union.edu/eps-workshop/">workshop: EvoPhysSys (ctd)</a></td>
+  <td class="tutorial2"><a href="http://bingweb.binghamton.edu/~sayama/ICoNMAP.html">tutorial: ICoNMAP (until 18:00)</a></td>
+</tr>
+<tr>
+  <td class="time">17:25</td>
+  <td colspan="6" class="general">close</td>
+</tr>
+EOF
+    ;;
+  21)
+    cat << EOF >> $DDOC
+<tr>
+  <th class="time"></th>
+  <th class="activitycol5 room"><a href="room-info.html#1">RCH/037<br>Lecture theatre</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#2">RCH/248<br>Lakehouse 1</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#3">RCH/250<br>Lakehouse 2</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#4">RCH/017<br>Teaching room</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#5">RCH/204<br>Seminar room</a></th>
+</tr>
+<tr>
+  <td class="time">09:00</td>
+  <td class="keynote"><a href="programme.html">keynote: Rachel Armstrong</a></td>
+</tr>
+<tr>
+  <td class="time">10:00</td>
+  <td class="session"><a href="schedule-tuesday.html#1">Network Theory</a></td>
+  <td class="session"><a href="schedule-tuesday.html#2">In Vitro Systems</a></td>
+  <td class="session"></td>
+  <td class="workshop5"><a href="http://www.chem.gla.ac.uk/ecal2015/index.html">workshop: SynNatSys</a></td>
+  <td class="tutorial3"><a href="http://www.phychip.eu/physarumyork/">tutorial: Physarum Machines</a></td>
+</tr>
+<tr>
+  <td class="time">10:50</td>
+  <td colspan="5" class="general">coffee break</td>
+</tr>
+<tr>
+  <td class="time">11:20</td>
+  <td class="session"><a href="schedule-tuesday.html#3">Evolutionary Dynamics 1</a></td>
+  <td class="session"><a href="schedule-tuesday.html#4">In Materio Systems</a></td>
+  <td class="session"><a href="schedule-tuesday.html#5">Cellular Automata</a></td>
+  <td class="workshop5"><a href="http://www.chem.gla.ac.uk/ecal2015/index.html">workshop: SynNatSys (ctd)</a></td>
+  <td class="tutorial3"><a href="http://www.phychip.eu/physarumyork/">tutorial: Physarum Machines (ctd)</a></td>
+</tr>
+<tr>
+  <td class="time">13:00</td>
+  <td colspan="5" class="general">lunch break</td>
+</tr>
+<tr>
+  <td class="time">14:00</td>
+  <td class="session"><a href="schedule-tuesday.html#6">Evolutionary Dynamics 2</a></td>
+  <td class="session"><a href="schedule-tuesday.html#7">special session: Morphogenetic Engineering 1</a></td>
+  <td class="session"><a href="schedule-tuesday.html#8">special session: Slime Mould Computers</a></td>
+  <td class="workshop5"><a href="http://www.chem.gla.ac.uk/ecal2015/index.html">workshop: SynNatSys (ctd)</a></td>
+  <td class="workshop7"><a href="http://www.plluisi.org/ECAL2015/SB-AI_satellite_ecal2015.htm">workshop: SB-AI</a></td>
+</tr>
+<tr>
+  <td class="time">15:40</td>
+  <td colspan="5" class="general">tea break</td>
+</tr>
+<tr>
+  <td class="time">16:10</td>
+  <td class="session"><a href="schedule-tuesday.html#9">Game Theory and Networks</a></td>
+  <td class="session"><a href="schedule-tuesday.html#10">special session: Morphogenetic Engineering 2</a></td>
+  <td class="session"><a href="schedule-tuesday.html#11">Late breaking papers 1</a></td>
+  <td class="workshop5"><a href="http://www.chem.gla.ac.uk/ecal2015/index.html">workshop: SynNatSys (ctd)</a></td>
+  <td class="workshop7"><a href="http://www.plluisi.org/ECAL2015/SB-AI_satellite_ecal2015.htm">workshop: SB-AI (ctd)</a></td>
+</tr>
+<tr>
+  <td class="time">17:25</td>
+  <td colspan="5" class="general">paper sessions close</td>
+</tr>
+<tr>
+  <td class="time">17:30</td>
+  <td class="session">Poster video session</td>
+</tr>
+<tr>
+  <td class="time">18:00</td>
+  <td colspan="5" class="postersession"><a href="schedule-tuesday.html#11">Welcome reception and poster display session (Atrium)</a></td>
+</tr>
+EOF
+    ;;
+  22)
+    cat << EOF >> $DDOC
+<tr>
+  <th class="time"></th>
+  <th class="activitycol5 room"><a href="room-info.html#1">RCH/037<br>Lecture theatre</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#2">RCH/248<br>Lakehouse 1</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#3">RCH/250<br>Lakehouse 2</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#4">RCH/017<br>Teaching room</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#5">RCH/204<br>Seminar room</a></th>
+</tr>
+<tr>
+  <td class="time">09:00</td>
+  <td class="keynote"><a href="programme.html">artist: Andy Lomas</a></td>
+</tr>
+<tr>
+  <td class="time">10:00</td>
+  <td class="session"><a href="schedule-wednesday.html#13">Computational Biology</a></td>
+  <td class="session"><a href="schedule-wednesday.html#14">Programming ALife</a></td>
+  <td class="session"><a href="schedule-wednesday.html#15">Behavioural and Evo Robotics 1</a></td>
+  <td class="session"></td>
+  <td class="tutorial3"><a href="tutorials.html">tutorial: Statistical Analysis</a></td>
+</tr>
+<tr>
+  <td class="time">10:50</td>
+  <td colspan="5" class="general">coffee break</td>
+</tr>
+<tr>
+  <td class="time">11:20</td>
+  <td class="session"><a href="schedule-wednesday.html#16">Evolutionary Dynamics 3</a></td>
+  <td class="session"><a href="schedule-wednesday.html#17">Agent Strategies</a></td>
+  <td class="session"><a href="schedule-wednesday.html#18">Communication and Language</a></td>
+  <td class="session"></td>
+  <td class="tutorial3"><a href="tutorials.html">tutorial: Statistical Analysis (ctd)</a></td>
+</tr>
+<tr>
+  <td class="time">13:00</td>
+  <td colspan="5" class="general">lunch break</td>
+</tr>
+<tr>
+  <td class="time">14:00</td>
+  <td colspan="3" class="trip">conference trip: Castle Howard<br><br><br><br><br><br><br></td>
+  <td class="workshop7"><a href="http://www.chem.gla.ac.uk/ecal2015/">informal meeting: SysNatSys &amp; SB-AI Joint Meeting on Synthetic Biology </a></td>
+  <td class="trip"></td>  
+</tr>
+<tr>
+  <td class="time">17:00</td>
+  <td colspan="5" class="general">close</td>
+</tr>
+EOF
+    ;;
+  23)
+    cat << EOF >> $DDOC
+<tr>
+  <th class="time"></th>
+  <th class="activitycol5 room"><a href="room-info.html#1">RCH/037<br>Lecture theatre</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#2">RCH/248<br>Lakehouse 1</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#3">RCH/250<br>Lakehouse 2</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#4">RCH/017<br>Teaching room</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#5">RCH/204<br>Seminar room</a></th>
+</tr>
+<tr>
+  <td class="time">09:00</td>
+  <td class="keynote"><a href="programme.html">keynote: Justin Werfel</a></td>
+</tr>
+<tr>
+  <td class="time">10:00</td>
+  <td class="session"><a href="schedule-thursday.html#19">Collective Behaviours</a></td>
+  <td class="session"><a href="schedule-thursday.html#20">Shape and Form</a></td>
+  <td class="session"></td>
+  <td class="workshop5"><a href="http://www.truce-project.eu/truce--ecal-2015.html">workshop: TRUCE</a></td>
+  <td class="tutorial3"><a href="http://www.aevol.fr/ecalTutorial/">tutorial: Aevol</a></td>
+</tr>
+<tr>
+  <td class="time">10:50</td>
+  <td colspan="5" class="general">coffee break</td>
+</tr>
+<tr>
+  <td class="time">11:20</td>
+  <td class="session"><a href="schedule-thursday.html#21">Swarm Intelligence</a></td>
+  <td class="session"><a href="schedule-thursday.html#22">Artificial Chemistries 1</a></td>
+  <td class="session"><a href="schedule-thursday.html#23">Learning and Evolutionary Software Systems</a></td>
+  <td class="workshop5"><a href="http://www.truce-project.eu/truce--ecal-2015.html">workshop: TRUCE (ctd)</a></td>
+  <td class="tutorial3"><a href="http://www.aevol.fr/ecalTutorial/">tutorial: Aevol (ctd)</a></td>
+</tr>
+<tr>
+  <td class="time">13:00</td>
+  <td colspan="5" class="general">lunch break</td>
+</tr>
+<tr>
+  <td class="time">14:00</td>
+  <td class="session"><a href="schedule-thursday.html#24">Social Networks 1</a></td>
+  <td class="session"><a href="schedule-thursday.html#25">Artificial Chemistries 2</a></td>
+  <td class="session"><a href="schedule-thursday.html#26">special session: Quantifying Embodiment</a></td>
+  <td class="workshop5"><a href="http://www.truce-project.eu/truce--ecal-2015.html">workshop: TRUCE (ctd)</a></td>
+  <td class="tutorial4"><a href="http://pages.isir.upmc.fr/~bredeche/evorobots_tutorial/">tutorial: EvoRobots</a></td>
+</tr>
+<tr>
+  <td class="time">15:40</td>
+  <td colspan="5" class="general">tea break</td>
+</tr>
+<tr>
+  <td class="time">16:10</td>
+  <td class="session"><a href="schedule-thursday.html#27">Social Networks 2</a></td>
+  <td class="session"><a href="schedule-thursday.html#28">Educational Systems</a></td>
+  <td class="session"></td>
+  <td class="workshop5"><a href="http://www.truce-project.eu/truce--ecal-2015.html">workshop: TRUCE (ctd)</a></td>
+  <td class="tutorial4"><a href="http://pages.isir.upmc.fr/~bredeche/evorobots_tutorial/">tutorial: EvoRobots (ctd)</a></td>
+</tr>
+<tr>
+  <td class="time">17:25</td>
+  <td colspan="5" class="general">paper sessions close</td>
+</tr>
+<tr>
+  <td class="time">17:30</td>
+  <td class="tutorial1">Awards &amp; ISAL meeting</td>
+</tr>
+<tr>
+  <td class="time">18:30</td>
+  <td colspan="5" class="general">close</td>
+</tr>
+<tr>
+  <td class="time">19:30</td>
+  <td colspan="5" class="dinner">Conference dinner, Railway Museum</td>
+</tr>
+EOF
+    ;;
+  24)
+    cat << EOF >> $DDOC
+<tr>
+  <th class="time"></th>
+  <th class="activitycol5 room"><a href="room-info.html#1">RCH/037<br>Lecture theatre</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#2">RCH/248<br>Lakehouse 1</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#3">RCH/250<br>Lakehouse 2</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#4">RCH/017<br>Teaching room</a></th>
+  <th class="activitycol5 room"><a href="room-info.html#5">RCH/204<br>Seminar room</a></th>
+</tr>
+<tr>
+  <td class="time">09:00</td>
+  <td class="keynote"><a href="programme.html">keynote: Paulien Hogeweg</a></td>
+</tr>
+<tr>
+  <td class="time">10:00</td>
+  <td class="session"><a href="schedule-friday.html#29">Agent Control</a></td>
+  <td class="session"><a href="schedule-friday.html#30">Ecosystems</a></td>
+  <td class="session"><a href="schedule-friday.html#31">Late breaking papers 2</a></td>
+  <td class="workshop5"><a href="http://www.evoevo.eu/">workshop: EvoEvo</a></td>
+  <td class="workshop3"><a href="http://www.hieratic.eu/hiedy/programme.php">workshop: HieDy</a></td>
+</tr>
+<tr>
+  <td class="time">10:50</td>
+  <td colspan="5" class="general">coffee break</td>
+</tr>
+<tr>
+  <td class="time">11:20</td>
+  <td class="session"><a href="schedule-friday.html#32">Behavioural Evolutionary Robotics 2</a></td>
+  <td class="session"><a href="schedule-friday.html#33">Complexity</a></td>
+  <td class="session"></td>
+  <td class="workshop5"><a href="http://www.evoevo.eu/">workshop: EvoEvo (ctd)</a></td>
+  <td class="workshop3"><a href="http://www.hieratic.eu/hiedy/programme.php">workshop: HieDy (ctd)</a></td>
+</tr>
+<tr>
+  <td class="time">13:00</td>
+  <td colspan="5" class="general">lunch break</td>
+</tr>
+<tr>
+  <td class="time">14:00</td>
+  <td class="session"><a href="schedule-friday.html#34">Behavioural Evolutionary Robotics 3</a></td>
+  <td class="session"></td>
+  <td class="session"><a href="schedule-friday.html#35">Late breaking papers 3</a></td>
+  <td class="workshop5"><a href="http://www.evoevo.eu/">workshop: EvoEvo (ctd)</a></td>
+  <td class="workshop3"><a href="http://www.hieratic.eu/hiedy/programme.php">workshop: HieDy (ctd)</a></td>
+</tr>
+<tr>
+  <td class="time">15:40</td>
+  <td colspan="5" class="general">tea break</td>
+</tr>
+<tr>
+  <td class="time">16:10</td>
+  <td class="session"><a href="schedule-friday.html#36">Agent and Robot Morphology</a></td>
+  <td class="session"></td>
+  <td class="session"><a href="schedule-friday.html#37">Late breaking papers 4</a></td>
+  <td class="workshop6"><a href="http://alife.org/ws/oee1/">workshop: OEE #2</a></td>
+  <td class="workshop3"><a href="http://www.hieratic.eu/hiedy/programme.php">workshop: HieDy (ctd)</a></td>
+</tr>
+<tr>
+  <td class="time">17:25</td>
+  <td colspan="5" class="general">conference close</td>
+</tr>
+EOF
+    ;;
+  esac
+  
+  {
+    echo "</table>"
+    echo "</article>"
+  } >> $DDOC
+  
+
+###########
+  # list each of the day's sessions, along with its talks
+  
+  if [ "$DAY" -gt "20" ]; then
+  
+    {
+      echo "<article>"
+      echo "<h3>Today's sessions</h3>"
+    } >> $DDOC
+
+    #cmd="sqlite3 ecalprog.db \"SELECT id FROM sessions WHERE date LIKE '% "$DAY" %' ORDER BY time\""
+    #echo $DAY
+    #echo $DLNK
+    #echo $cmd
+    
+    for SID in `sqlite3 ecalprog.db "SELECT id FROM sessions WHERE date LIKE '% "$DAY" %' ORDER BY time"`; do
+      # grab data associated with this session
+      STITLE=`sqlite3 ecalprog.db "SELECT title FROM sessions WHERE id="$SID`;
+      #echo $STITLE;
+      SDATE=`sqlite3 ecalprog.db "SELECT date FROM sessions WHERE id="$SID`;
+      #echo $SDATE;
+      STIME=`sqlite3 ecalprog.db "SELECT time FROM sessions WHERE id="$SID`;
+      #echo $STIME;
+      RID=`sqlite3 ecalprog.db "SELECT roomid FROM sessions WHERE id="$SID`;
+      #echo $RID;
+      ROOMNO=`sqlite3 ecalprog.db "SELECT number FROM rooms WHERE id="$RID`;
+      #echo $ROOMNO;
+      {
+	echo "<article id=$SID class=\"session-daily-schedule\">" 
+	echo "<h2>$STITLE</h2>"
+	echo "<span class='date'>$SDATE</span>"
+	echo "<span class='time'>$STIME</span>"
+	echo "<span class='room'><a href=\"$ROOMINFOLNK#$RID\">$ROOMNO</a></span>"
+	echo "<ul class=\"session-talks-daily-schedule\">"
+      } >> $DDOC
+    
+      # write a list of all talks in this session
+      for TID in `sqlite3 ecalprog.db "SELECT id FROM talks WHERE sessionid="$SID" ORDER BY sessionpos"`; do
+
+	PTIME=`sqlite3 ecalprog.db "SELECT time FROM talks WHERE id="$TID`;
+	PTITLE=`sqlite3 ecalprog.db "SELECT title FROM talks WHERE id="$TID`;
+	
+	echo "<li>" >> $DDOC
+	
+	# only print the talk time if it is not null (i.e. not a poster)
+	if [ -n "$PTIME" ]; then
+	  if [ "$PTIME" = "0" ]; then
+	    PTIME="(unable to present)"
+          fi
+	  echo "<span class='paper-time'>$PTIME</span>" >> $DDOC
+	fi
+	
+	echo "<span class='paper-title'><a href=\"$PAPERLNKPFX$TID.html\">$PTITLE</a></span>" >> $DDOC
+	
+	VURL=`sqlite3 ecalprog.db "SELECT videourl FROM talks WHERE id="$TID`
+	if [ -n "$VURL" ]; then
+	  echo "<span class='has-video'><a href='$PAPERLNKPFX$TID.html#video'>video&nbsp;abstract</a></span>" >> $DDOC
+	fi
+	
+	for AAID in `sqlite3 ecalprog.db "SELECT authorid FROM talkauthors WHERE talkid="$TID" ORDER BY authorpos"`; do
+	  AANAME=`sqlite3 ecalprog.db "SELECT name FROM authors WHERE id="$AAID`;
+	  echo "<span class='author-name'><a href=\"$AUTHORLNKPFX$AAID.html\">$AANAME</a></span>" >> $DDOC
+	done
+	
+	echo "</li>" >> $DDOC
+	
+      done
+    
+      {
+	echo "</ul>"
+	echo "</article>"
+      } >> $DDOC
+    
+    done
+
+    {
+      echo "</article>"
+    } >> $DDOC
+  
+  fi
+
+  
+  # Write footer HTML for author index page
+  write_footer >> $DDOC
+
+done
+
+
+
+#########################################################################
+# Room information page
+
+# Write header HTML for room info page
+write_header "$ROOMINFOTXT" >> $ROOMINFODOC
+
+###########
+
+for RID in `sqlite3 ecalprog.db "SELECT id FROM rooms ORDER BY number"`; do
+  # grab data associated with this room
+  RNUM=`sqlite3 ecalprog.db "SELECT number FROM rooms WHERE id="$RID`;
+  RDESC=`sqlite3 ecalprog.db "SELECT desc FROM rooms WHERE id="$RID`;
+  {
+    echo "<article id=$RID class=\"room-info\">"
+    echo "<h2>$RNUM</h2>"
+    echo "<p>$RDESC</p>"
+    case $RID in
+    1|4|7)
+      PIC='rch-floorplan-level0.png'
+      ;;
+    6)
+      PIC='rch-floorplan-level1.png'
+      ;;
+    2|3|5)
+      PIC='rch-floorplan-level2.png'
+      ;;
+    esac
+    echo "<img src='$PIC' alt='floor plan' width=550 height=400>"
+    echo "</article>"
+  } >> $ROOMINFODOC
+done
+
+###########
+
+# Write footer HTML for room info page
+write_footer >> $ROOMINFODOC
+
+
+#########################################################################
+# Author pages
+
+for AID in `sqlite3 ecalprog.db "SELECT id FROM authors"`; do
+
+  ANAME=`sqlite3 ecalprog.db "SELECT name FROM authors WHERE id="$AID`;
+  
+  ALNK="$AUTHORLNKPFX$AID.html"
+  ADOC=$ODIR$ALNK
+  
+  # generate a page for this author
+  
+  write_header "Author Details" >> $ADOC
+  
+  {
+    echo "<article class=\"author-details\">"
+    echo "<h3>Name</h3>"
+    echo "<p id="name-author-details">$ANAME</p>"
+    echo "</article>"
+    echo "<article class=\"author-details\">"
+    echo "<h3>Papers</h3>"
+    echo "<ul class=\"papers-author-details\">"
+  } >> $ADOC
+  
+  for TID in `sqlite3 ecalprog.db "SELECT talkid FROM talkauthors WHERE authorid="$AID" ORDER BY talkid"`; do
+  
+    PTITLE=`sqlite3 ecalprog.db "SELECT title FROM talks WHERE id="$TID`;
+    {
+      echo "<li>" 
+      echo "<span class='paper-title'><a href=\"$PAPERLNKPFX$TID.html\">$PTITLE</a></span>"
+    } >> $ADOC
+    
+    VURL=`sqlite3 ecalprog.db "SELECT videourl FROM talks WHERE id="$TID`
+    if [ -n "$VURL" ]; then
+      echo "<span class='has-video'><a href='$PAPERLNKPFX$TID.html#video'>video&nbsp;abstract</a></span>" >> $ADOC
+    fi    
+    
+    for AAID in `sqlite3 ecalprog.db "SELECT authorid FROM talkauthors WHERE talkid="$TID" ORDER BY authorpos"`; do
+      AANAME=`sqlite3 ecalprog.db "SELECT name FROM authors WHERE id="$AAID`;
+      echo "<span class='author-name'><a href=\"$AUTHORLNKPFX$AAID.html\">$AANAME</a></span>" >> $ADOC
+    done
+    
+    echo "</li>" >> $ADOC
+
+  done
+  
+  {
+    echo "</ul>"
+    echo "</article>"
+  } >> $ADOC  
+  
+  write_footer >> $ADOC
+
+done
+
+#########################################################################
+# Paper pages
+
+for TID in `sqlite3 ecalprog.db "SELECT id FROM talks"`; do
+
+  PTITLE=`sqlite3 ecalprog.db "SELECT title FROM talks WHERE id="$TID`;
+  PTIME=`sqlite3 ecalprog.db "SELECT time FROM talks WHERE id="$TID`;
+  SID=`sqlite3 ecalprog.db "SELECT sessionid FROM talks WHERE id="$TID`;
+  STITLE=`sqlite3 ecalprog.db "SELECT title FROM sessions WHERE id="$SID`;
+  STIME=`sqlite3 ecalprog.db "SELECT time FROM sessions WHERE id="$SID`;
+  SDATE=`sqlite3 ecalprog.db "SELECT date FROM sessions WHERE id="$SID`;
+  RID=`sqlite3 ecalprog.db "SELECT roomid FROM sessions WHERE id="$SID`;
+  ROOMNO=`sqlite3 ecalprog.db "SELECT number FROM rooms WHERE id="$RID`;
+
+  PLNK="$PAPERLNKPFX$TID.html"
+  PDOC=$ODIR$PLNK
+  
+  DNUM=0
+  REGEX=".*([[:digit:]]{2}).*"
+  if [[ $SDATE =~ $REGEX ]]; then DNUM=${BASH_REMATCH[1]}; fi
+  
+  
+  # deal with times for posters and papers where author cannot present it
+  if [ -z "$PTIME" ]; then
+    PTIME="(poster session)"
+  elif [ "$PTIME" = "0" ]; then
+    PTIME="(unable to present)"
+  fi
+  
+  # generate a page for this author
+  
+  write_header "Paper "$TID" Details" >> $PDOC
+  
+  {
+    echo "<article class=\"paper-details\">"
+    echo "<h3>Title</h3>"
+    echo "<p id="paper-title-details">$PTITLE</p>"
+    echo "</article>"
+    echo "<article class=\"paper-details\">"
+    echo "<h3>Authors</h3>"
+    echo "<ul>"
+  } >> $PDOC
+  
+  for AID in `sqlite3 ecalprog.db "SELECT authorid FROM talkauthors WHERE talkid="$TID" ORDER BY authorpos"`; do
+    ANAME=`sqlite3 ecalprog.db "SELECT name FROM authors WHERE id="$AID`;
+    echo "<li><span class='author-name'><a href=\"$AUTHORLNKPFX$AID.html\">$ANAME</a></span></li>" >> $PDOC
+  done
+
+  {
+    echo "</ul>"
+    echo "</article>"
+    echo "<article class=\"paper-details\">"
+    echo "<h3>Presentation Schedule</h3>"
+    echo "<ul>"
+    echo "<li>Talk Time: $PTIME</li>"
+    echo "<li>Date: <a href=\"${DLNK[DNUM]}\">$SDATE</a></li>"
+    echo "<li>Session: <a href=\"${DLNK[DNUM]}#$SID\">$STITLE</a> <span class='room'><a href=\"$ROOMINFOLNK#$RID\">$ROOMNO</a></span> <span class='date'><a href=\"${DLNK[DNUM]}\">$SDATE</a></span> <span class='time'>$STIME</span></li>"
+    echo "</ul>"
+    echo "</article>"
+  } >> $PDOC
+  
+  MITID=`sqlite3 ecalprog.db "SELECT mitid FROM idmap WHERE ecid="$TID`;
+  if [ -n "$MITID" ]; then
+    # this is a full paper in the MIT Press proceedings
+
+    PAPERLNK=`printf "https://mitpress.mit.edu/sites/default/files/titles/content/ecal2015/ch%03d.html" $MITID`
+    echo "<article class=\"paper-details\">" >> $PDOC
+    echo "<h3>Full Paper Download</h3>" >> $PDOC
+    echo "<p>Download via <span class='download'><a href='$PAPERLNK'>this paper's page</a></span> on the MIT Press ECAL 2015 Proceedings website.</p>" >> $PDOC    
+    echo "</article>" >> $PDOC    
+    
+    ABSDOC=`printf "$ABDIR%03d.txt" $MITID`
+    echo "<article class=\"paper-details\">" >> $PDOC
+    echo "<h3>Abstract</h3>" >> $PDOC
+    cat $ABSDOC >> $PDOC
+    echo "</article>" >> $PDOC
+
+  else
+    # this is a late breaking paper in locally hosted proceedings
+    
+    PAPERLNK=`printf "late-breaking/%03d.pdf" $TID`
+    echo "<article class=\"paper-details\">" >> $PDOC
+    echo "<h3>Full Paper Download</h3>" >> $PDOC
+    echo "<p><span class='download'><a href='$PAPERLNK'>Full paper PDF</a></span> (late breaking paper).</p>" >> $PDOC    
+    echo "</article>" >> $PDOC        
+    
+    LBABSDOC=`printf "$LBABDIR%03d.txt" $TID`
+    if [ -e "$LBABSDOC" ]; then
+      echo "<article class=\"paper-details\">" >> $PDOC
+      echo "<h3>Abstract</h3>" >> $PDOC
+      cat $LBABSDOC >> $PDOC
+      echo "</article>" >> $PDOC 
+    else
+      echo "Could not find anstract for Paper ID $TID"
+    fi
+  fi
+  
+  VURL=`sqlite3 ecalprog.db "SELECT videourl FROM talks WHERE id="$TID`;
+  if [ -n "$VURL" ]; then
+    REGEX="http.*//.*youtu.*/(.*)"
+    if [[ $VURL =~ $REGEX ]]; then
+      EMBED=${BASH_REMATCH[1]}
+      {
+        echo "<article id='video' class=\"paper-details\">"
+        echo "<h3>Video Abstract</h3>"
+        echo "<iframe width='560' height='315' src='https://www.youtube.com/embed/"$EMBED"' frameborder='0' allowfullscreen></iframe>"
+        echo "</article>"
+      } >> $PDOC
+    else
+      REGEX="http.*//.*stupeflix.*/v/(.*)"
+      if [[ $VURL =~ $REGEX ]]; then
+	EMBED=${BASH_REMATCH[1]}
+	{
+	  echo "<article id='video' class=\"paper-details\">"
+	  echo "<h3>Video Abstract</h3>"
+          echo "<iframe width='640' height='360' src='https://studio.stupeflix.com/embed/"$EMBED"' frameborder='0' allowfullscreen></iframe>"          
+	  echo "</article>"
+	} >> $PDOC
+      fi
+    fi
+  fi
+   
+  write_footer >> $PDOC
+
+done
+
+
+#########################################################################
+exit 0

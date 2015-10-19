@@ -1,0 +1,12 @@
+#!/bin/bash
+
+dIFS=$IFS
+IFS=$'\n'  # so that the following for loop splits input just on newlines rather than all whitespace
+
+REGEX="^([[:digit:]]{1,3}):([[:digit:]]{1,3})"
+  
+for T in `cat easychair2proccodes.txt`; do
+  if [[ $T =~ $REGEX ]]; then 
+    sqlite3 ecalprog.db "INSERT INTO idmap VALUES('"${BASH_REMATCH[1]}"','"${BASH_REMATCH[2]}"')"
+  fi
+done
